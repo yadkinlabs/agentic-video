@@ -1,0 +1,226 @@
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../node_modules/.prisma/client"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Auth
+// ---------------------------------------------------------------------------
+
+enum SystemRole {
+  super_admin
+  user
+}
+
+model User {
+  id            Int        @id @default(autoincrement())
+  email         String     @unique
+  password_hash String
+  name          String
+  role          SystemRole @default(user)
+  created_at    DateTime   @default(now())
+
+  memberships   ChannelMember[]
+  token_usage   TokenUsage[]
+}
+
+// ---------------------------------------------------------------------------
+// Channel
+// ---------------------------------------------------------------------------
+
+enum DefaultFormat {
+  long
+  short
+}
+
+model Channel {
+  id               Int           @id @default(autoincrement())
+  name             String
+  slug             String        @unique
+  default_format   DefaultFormat @default(long)
+  captions_enabled Boolean       @default(false)
+  created_at       DateTime      @default(now())
+
+  members          ChannelMember[]
+  objectives       Objective[]
+  service_configs  ServiceConfig[]
+  tasks            Task[]
+  footage_items    FootageItem[]
+  videos           Video[]
+  token_usage      TokenUsage[]
+}
+
+enum ChannelRole {
+  viewer
+  editor
+  approver
+  admin
+}
+
+model ChannelMember {
+  id         Int         @id @default(autoincrement())
+  channel_id Int
+  user_id    Int
+  role       ChannelRole @default(viewer)
+
+  channel    Channel     @relation(fields: [channel_id], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([channel_id, user_id])
+}
+
+// ---------------------------------------------------------------------------
+// Objectives (editorial guidance, injected into skill prompts)
+// ---------------------------------------------------------------------------
+
+model Objective {
+  id         Int      @id @default(autoincrement())
+  channel_id Int
+  content    String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  channel    Channel  @relation(fields: [channel_id], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------------
+// Service config (encrypted secrets: R2, ElevenLabs, YouTube, Runway, etc.)
+// ---------------------------------------------------------------------------
+
+model ServiceConfig {
+  id              Int      @id @default(autoincrement())
+  channel_id      Int
+  key             String
+  encrypted_value String
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  channel         Channel  @relation(fields: [channel_id], references: [id], onDelete: Cascade)
+
+  @@unique([channel_id, key])
+}
+
+// ---------------------------------------------------------------------------
+// Skills (seeded by seed_skills.py — metadata only, no secrets)
+// ---------------------------------------------------------------------------
+
+model Skill {
+  id         String   @id  // slug e.g. "script", "voice", "video_pipeline"
+  label      String
+  definition Json
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Tasks
+// ---------------------------------------------------------------------------
+
+enum TaskStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  RUNNING
+  COMPLETE
+  FAILED
+  CANCELLED
+}
+
+model Task {
+  id             String     @id @default(cuid())
+  channel_id     Int
+  parent_task_id String?    // orchestrator → step
+  title          String
+  skill          String
+  status         TaskStatus @default(DRAFT)
+  current_step   String?
+  brief          Json?
+  artifacts      Json?
+  revision_notes String?
+  created_at     DateTime   @default(now())
+  updated_at     DateTime   @updatedAt
+  claimed_at     DateTime?
+  completed_at   DateTime?
+
+  channel        Channel    @relation(fields: [channel_id], references: [id], onDelete: Cascade)
+  parent         Task?      @relation("subtasks", fields: [parent_task_id], references: [id])
+  subtasks       Task[]     @relation("subtasks")
+  logs           TaskLog[]
+  footage_items  FootageItem[]
+  video          Video?
+  token_usage    TokenUsage[]
+}
+
+model TaskLog {
+  id         Int      @id @default(autoincrement())
+  task_id    String
+  level      String   @default("info")  // info | warn | error
+  message    String
+  created_at DateTime @default(now())
+
+  task       Task     @relation(fields: [task_id], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------------
+// Footage (generated images, stored in R2)
+// ---------------------------------------------------------------------------
+
+model FootageItem {
+  id         Int      @id @default(autoincrement())
+  channel_id Int
+  task_id    String?
+  r2_key     String
+  prompt     String?
+  width      Int?
+  height     Int?
+  created_at DateTime @default(now())
+
+  channel    Channel  @relation(fields: [channel_id], references: [id], onDelete: Cascade)
+  task       Task?    @relation(fields: [task_id], references: [id], onDelete: SetNull)
+}
+
+// ---------------------------------------------------------------------------
+// Videos (written once at upload time — read-only summary)
+// ---------------------------------------------------------------------------
+
+model Video {
+  id               Int       @id @default(autoincrement())
+  channel_id       Int
+  task_id          String?   @unique
+  title            String
+  youtube_video_id String?
+  r2_thumbnail_key String?
+  published_at     DateTime?
+  created_at       DateTime  @default(now())
+
+  channel          Channel   @relation(fields: [channel_id], references: [id], onDelete: Cascade)
+  task             Task?     @relation(fields: [task_id], references: [id], onDelete: SetNull)
+}
+
+// ---------------------------------------------------------------------------
+// Token usage (approximate tracking across all skills)
+// ---------------------------------------------------------------------------
+
+model TokenUsage {
+  id            Int      @id @default(autoincrement())
+  task_id       String?
+  channel_id    Int?
+  user_id       Int?
+  skill         String?
+  model         String
+  provider      String
+  input_tokens  Int
+  output_tokens Int
+  created_at    DateTime @default(now())
+
+  task          Task?    @relation(fields: [task_id], references: [id], onDelete: SetNull)
+  channel       Channel? @relation(fields: [channel_id], references: [id], onDelete: SetNull)
+  user          User?    @relation(fields: [user_id], references: [id], onDelete: SetNull)
+}
