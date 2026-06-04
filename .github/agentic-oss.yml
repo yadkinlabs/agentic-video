@@ -1,0 +1,42 @@
+# agentic-oss configuration for agentic-video
+
+project:
+  name: agentic-video
+  description: Open-source AI video production pipeline — research, script, voice, images, motion, assembly, and upload with human review gates at every step.
+  docs_url: https://github.com/yadkinlabs/agentic-video#readme
+
+labels:
+  bug:       bug
+  feature:   enhancement
+  question:  question
+  duplicate: duplicate
+  spam:      spam
+  stale:     stale
+  handled:   agentic-handled
+
+stale:
+  days_before_stale: 30
+  days_before_close: 15
+  exempt_labels:
+    - pinned
+    - security
+    - in-progress
+
+faq:
+  - question: What do I need to run this?
+    answer: A Neon PostgreSQL database, a Vercel account for the Next.js app, an Anthropic API key, and a machine to run the Python worker (Raspberry Pi, Mac Mini, or any Linux box). See the README for full setup instructions.
+  - question: What AI services does this use?
+    answer: Claude (Anthropic) for research, scripting, and smart fix. ElevenLabs for voiceover. Runway or similar for motion. Image generation via configurable provider. All API keys are stored encrypted in the database.
+  - question: Can I use this without a Raspberry Pi?
+    answer: Yes — the worker runs on any machine with Python 3. A Mac Mini, VPS, or any Linux server works fine.
+  - question: Does this support multiple YouTube channels?
+    answer: Yes — the app supports multiple channels, each with their own API keys, objectives, and pipeline settings managed through the UI.
+
+sensitive_paths:
+  - src/lib/auth.ts
+  - src/lib/config.ts
+  - worker/skills/upload.py
+  - prisma/migrations
+
+digest:
+  mention: "@yadkinlabs"
