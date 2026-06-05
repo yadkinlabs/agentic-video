@@ -5,10 +5,11 @@ import { prisma } from "./prisma";
 // CONFIG_ENCRYPTION_KEY must be a base64-encoded 32-byte key
 // ---------------------------------------------------------------------------
 
-function getKey(): Uint8Array {
+function getKey(): ArrayBuffer {
   const raw = process.env.CONFIG_ENCRYPTION_KEY;
   if (!raw) throw new Error("CONFIG_ENCRYPTION_KEY is not set");
-  return Buffer.from(raw, "base64");
+  const buf = Buffer.from(raw, "base64");
+  return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
 }
 
 export async function encryptValue(plaintext: string): Promise<string> {
