@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireChannelRole } from "@/lib/auth";
 
@@ -80,7 +81,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       }
 
       case "patch_artifacts": {
-        const merged = { ...(task.artifacts as object ?? {}), ...body.artifacts_patch };
+        const merged = { ...(task.artifacts as object ?? {}), ...body.artifacts_patch } as Prisma.InputJsonValue;
         const updated = await prisma.task.update({
           where: { id: taskId },
           data: { artifacts: merged },
@@ -95,8 +96,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
             status: "PENDING_APPROVAL",
             current_step: body.step ?? null,
             artifacts: body.artifacts_patch
-              ? { ...(task.artifacts as object ?? {}), ...body.artifacts_patch }
-              : task.artifacts,
+              ? { ...(task.artifacts as object ?? {}), ...body.artifacts_patch } as Prisma.InputJsonValue
+              : task.artifacts ?? Prisma.JsonNull,
           },
         });
         return NextResponse.json(updated);
@@ -105,8 +106,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       // ── UI actions ──────────────────────────────────────────────────────────
       case "approve": {
         const artifacts = body.artifacts_patch
-          ? { ...(task.artifacts as object ?? {}), ...body.artifacts_patch }
-          : task.artifacts;
+          ? { ...(task.artifacts as object ?? {}), ...body.artifacts_patch } as Prisma.InputJsonValue
+          : task.artifacts ?? Prisma.JsonNull;
         const updated = await prisma.task.update({
           where: { id: taskId },
           data: { status: "APPROVED", artifacts },
@@ -130,8 +131,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
             current_step: null,
             revision_notes: body.revision_notes ?? null,
             artifacts: body.artifacts_patch
-              ? { ...(task.artifacts as object ?? {}), ...body.artifacts_patch }
-              : task.artifacts,
+              ? { ...(task.artifacts as object ?? {}), ...body.artifacts_patch } as Prisma.InputJsonValue
+              : task.artifacts ?? Prisma.JsonNull,
           },
         });
         await prisma.taskLog.create({

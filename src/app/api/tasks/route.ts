@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, requireChannelRole } from "@/lib/auth";
 import { routeTask } from "@/lib/task-router";
@@ -51,7 +52,7 @@ export async function POST(req: NextRequest) {
           channel_id: Number(channel_id),
           skill,
           title,
-          brief: brief ?? {},
+          brief: (brief ?? {}) as Prisma.InputJsonValue,
           parent_task_id: parent_task_id ?? null,
           status: status ?? "APPROVED",
         },
@@ -77,7 +78,7 @@ export async function POST(req: NextRequest) {
         channel_id: Number(channel_id),
         skill: routed.skill,
         title: routed.title,
-        brief: routed.brief,
+        brief: routed.brief as Prisma.InputJsonValue,
         status: "APPROVED", // go straight to pipeline; add review gate here if desired
       },
     });
