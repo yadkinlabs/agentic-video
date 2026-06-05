@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireChannelRole } from "@/lib/auth";
 
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest, { params }: Params) {
           ...(task.brief as object ?? {}),
           revision_notes: notes ?? task.revision_notes ?? "",
         },
-        artifacts: task.artifacts,
+        artifacts: task.artifacts ?? Prisma.JsonNull,
         status: "APPROVED",
       },
     });
